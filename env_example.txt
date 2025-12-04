@@ -1,0 +1,24 @@
+# Gemini API Keys for Multi-Domain Intelligence Platform
+# =====================================================
+# Copy this file to .env and fill in your actual API keys
+# Each domain has its own separate API key for isolation
+#
+# How to get Gemini API keys:
+# 1. Go to https://makersuite.google.com/app/apikey
+# 2. Create a new API key for each domain (or use the same key for all)
+# 3. Copy the keys below
+
+# Cybersecurity Domain API Key
+GEMINI_API_KEY_CYBERSECURITY=your_cybersecurity_api_key_here
+
+# Data Science Domain API Key
+GEMINI_API_KEY_DATASCIENCE=your_datascience_api_key_here
+
+# IT Operations Domain API Key
+GEMINI_API_KEY_ITOPERATIONS=your_itoperations_api_key_here
+
+# =====================================================
+# ALTERNATIVE: You can also enter API keys directly in the
+# dashboard interface using the "API Configuration" section
+# =====================================================
+
