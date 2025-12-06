@@ -5,10 +5,25 @@ from typing import Optional, List
 import pandas as pd
 
 
+# ============================================================
+# HARDCODED API KEYS (for convenience during development/demo)
+# ============================================================
+HARDCODED_API_KEY_CYBERSECURITY = "AIzaSyAzWGcD-I4mlWya6FECsg0ytM0ghogKsmU"
+HARDCODED_API_KEY_DATASCIENCE = "AIzaSyC2bJ0vtpYn1JjJORtAHcMcKmIRMsRQeSI"
+HARDCODED_API_KEY_ITOPERATIONS = "AIzaSyD06sgavkKs5P7j-oxVX42MfGSWQDek304"
+
 # Domain-specific API key environment variable names
 API_KEY_CYBERSECURITY = "GEMINI_API_KEY_CYBERSECURITY"
 API_KEY_DATASCIENCE = "GEMINI_API_KEY_DATASCIENCE"
 API_KEY_ITOPERATIONS = "GEMINI_API_KEY_ITOPERATIONS"
+
+# Set environment variables from hardcoded keys (if not already set)
+if not os.getenv(API_KEY_CYBERSECURITY):
+    os.environ[API_KEY_CYBERSECURITY] = HARDCODED_API_KEY_CYBERSECURITY
+if not os.getenv(API_KEY_DATASCIENCE):
+    os.environ[API_KEY_DATASCIENCE] = HARDCODED_API_KEY_DATASCIENCE
+if not os.getenv(API_KEY_ITOPERATIONS):
+    os.environ[API_KEY_ITOPERATIONS] = HARDCODED_API_KEY_ITOPERATIONS
 
 # Default model - will be updated based on available models
 DEFAULT_MODEL = "models/gemini-2.5-flash"

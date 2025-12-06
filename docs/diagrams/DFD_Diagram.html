@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Flow Diagram - Multi-Domain Intelligence Platform</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #1565c0;
+        }
+        .diagram-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Data Flow Diagram (DFD)</h1>
+    <h2 style="text-align: center; color: #666;">Multi-Domain Intelligence Platform - M01067520</h2>
+    
+    <div class="instructions">
+        <strong>📸 To save as image:</strong> Right-click on the diagram → "Save image as..." OR take a screenshot (Win+Shift+S)
+    </div>
+    
+    <div class="diagram-container">
+        <pre class="mermaid">
+flowchart TB
+    subgraph VIEW["🖥️ VIEW LAYER - Streamlit Pages"]
+        LOGIN["1_Login.py<br/>Authentication UI"]
+        CYBER["2_Cybersecurity_Dashboard.py<br/>Incident Management"]
+        DATA["3_DataScience_Dashboard.py<br/>Dataset Governance"]
+        IT["4_IT_Operations_Dashboard.py<br/>Ticket Management"]
+    end
+
+    subgraph CONTROLLER["⚙️ CONTROLLER LAYER - Services"]
+        AUTH["user_service.py<br/>• register_user()<br/>• login_user()<br/>• verify_password()"]
+        AI["gemini_service.py<br/>• query_cybersecurity_assistant()<br/>• query_datascience_assistant()<br/>• query_itoperations_assistant()"]
+    end
+
+    subgraph MODEL["📦 MODEL LAYER - Data Access"]
+        USERS["users.py<br/>CRUD Operations"]
+        INCIDENTS["incidents.py<br/>CRUD Operations"]
+        DATASETS["datasets.py<br/>CRUD Operations"]
+        TICKETS["tickets.py<br/>CRUD Operations"]
+    end
+
+    subgraph DATABASE["🗄️ DATABASE LAYER"]
+        DB[(SQLite Database<br/>intelligence_platform.db)]
+    end
+
+    subgraph EXTERNAL["☁️ EXTERNAL APIs"]
+        GEMINI["Google Gemini API"]
+    end
+
+    LOGIN --> AUTH
+    CYBER --> AUTH
+    CYBER --> AI
+    DATA --> AUTH
+    DATA --> AI
+    IT --> AUTH
+    IT --> AI
+
+    AUTH --> USERS
+    AI --> INCIDENTS
+    AI --> DATASETS
+    AI --> TICKETS
+
+    USERS --> DB
+    INCIDENTS --> DB
+    DATASETS --> DB
+    TICKETS --> DB
+
+    AI --> GEMINI
+
+    SESSION[["st.session_state<br/>• logged_in<br/>• username<br/>• role"]]
+    LOGIN -.-> SESSION
+    SESSION -.-> CYBER
+    SESSION -.-> DATA
+    SESSION -.-> IT
+        </pre>
+    </div>
+    
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>
+
