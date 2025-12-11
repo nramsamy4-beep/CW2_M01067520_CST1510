@@ -8,7 +8,7 @@ import plotly.express as px
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.data.tickets import get_all_tickets, insert_ticket, update_ticket_status, delete_ticket
-from app.services.gemini_service import query_itoperations_assistant, API_KEY_ITOPERATIONS, list_available_models
+from app.services.gemini_service import query_itoperations_assistant, API_KEY_ITOPERATIONS, list_available_models, get_api_key
 import os
 
 st.set_page_config(
@@ -69,6 +69,54 @@ with st.sidebar:
         selected_priority = "All"
         selected_status = "All"
         selected_staff = "All"
+    
+    st.divider()
+    st.subheader("🤖 AI Settings")
+    
+    # API Key input (secure - from secrets or manual entry)
+    api_key = get_api_key("itoperations")
+    if not api_key:
+        st.info("🔑 **API Key Required**\n\nTo use the AI assistant, please:\n1. Enter your key below, OR\n2. Create a `.env` file (see README)")
+        api_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            help="Get your FREE key from https://makersuite.google.com/app/apikey",
+            placeholder="Enter your Gemini API key here...",
+            key="it_api_key_input"
+        )
+        if api_key:
+            st.success("✅ API Key entered (session only)")
+    else:
+        st.success("✅ API Key loaded from configuration")
+    
+    # Model selection (gemini-2.5-flash is the default)
+    selected_model = st.selectbox(
+        "Model",
+        ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+        index=0,
+        help="Select the Gemini model. gemini-2.5-flash is the latest version.",
+        key="it_model_select"
+    )
+    
+    # Temperature slider
+    temperature = st.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=2.0,
+        value=0.7,
+        step=0.1,
+        help="Higher values = more creative, Lower = more focused",
+        key="it_temperature"
+    )
+    
+    # Message count
+    msg_count = len([m for m in st.session_state.get("it_chat_history", []) if m["role"] == "user"])
+    st.metric("💬 Messages", msg_count)
+    
+    # Clear chat button
+    if st.button("🗑️ Clear Chat History", use_container_width=True, key="clear_it_chat_sidebar"):
+        st.session_state.it_chat_history = []
+        st.rerun()
 
 # =============================================
 # ADD NEW TICKET - PROMINENT SECTION AT TOP
@@ -379,73 +427,92 @@ if not df_analysis.empty:
         st.markdown(f"- {rec}")
 
 # =============================================
-# AI ASSISTANT SECTION
+# AI ASSISTANT SECTION (Week 10 Lab Style with Streaming)
 # =============================================
 st.divider()
 st.subheader("🤖 IT Operations AI Assistant")
-st.caption("Ask questions about IT tickets and service desk performance. This AI only answers IT operations-related questions.")
+st.caption("Ask questions about IT tickets and service desk performance. Powered by Google Gemini.")
 
 # Initialize chat history in session state
 if "it_chat_history" not in st.session_state:
     st.session_state.it_chat_history = []
 
-# API Key input
-with st.expander("⚙️ API Configuration", expanded=False):
-    it_api_key = st.text_input(
-        "Gemini API Key for IT Operations",
-        type="password",
-        value=os.getenv(API_KEY_ITOPERATIONS, ""),
-        help="Enter your Gemini API key for the IT Operations domain",
-        key="it_api_key_input"
-    )
-    if it_api_key:
-        os.environ[API_KEY_ITOPERATIONS] = it_api_key
-        st.success("✅ API Key configured")
-        
-        # Show available models
-        if st.button("🔍 List Available Models", key="list_models_it"):
-            with st.spinner("Fetching available models..."):
-                models = list_available_models(it_api_key)
-                if models:
-                    st.info("**Available Models:**")
-                    for m in models:
-                        st.code(m)
+# Display chat history
+for message in st.session_state.it_chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# Chat interface
-with st.container():
-    # Display chat history
-    for message in st.session_state.it_chat_history:
-        if message["role"] == "user":
-            st.chat_message("user").write(message["content"])
-        else:
-            st.chat_message("assistant").write(message["content"])
-    
-    # Chat input
-    user_question = st.chat_input("Ask about IT tickets and service desk...", key="it_chat_input")
-    
-    if user_question:
-        # Check if API key is configured
-        api_key = os.getenv(API_KEY_ITOPERATIONS, "")
-        
-        if not api_key:
-            st.error("⚠️ Please configure your Gemini API key in the API Configuration section above.")
-        else:
-            # Add user message to history
-            st.session_state.it_chat_history.append({"role": "user", "content": user_question})
-            st.chat_message("user").write(user_question)
-            
-            # Get AI response
-            with st.spinner("🔍 Analyzing ticket data..."):
-                # Get fresh data for context
-                tickets_data = get_all_tickets()
-                response = query_itoperations_assistant(user_question, tickets_data, api_key)
-            
-            # Add response to history
-            st.session_state.it_chat_history.append({"role": "assistant", "content": response})
-            st.chat_message("assistant").write(response)
+# Chat input (at bottom of page)
+user_question = st.chat_input("Ask about IT tickets and service desk...")
 
-# Clear chat button
-if st.session_state.it_chat_history:
-    if st.button("🗑️ Clear Chat History", key="clear_it_chat"):
-        st.session_state.it_chat_history = []
-        st.rerun()
+if user_question:
+    if not api_key:
+        st.error("⚠️ **API Key Required**")
+        st.info("""
+        **To use the AI assistant:**
+        1. Enter your Gemini API key in the **AI Settings** section (sidebar)
+        2. Or create a `.env` file with `GEMINI_API_KEY=your_key_here`
+        
+        **Get a FREE API key:** https://makersuite.google.com/app/apikey
+        """)
+    else:
+        # Display user message
+        with st.chat_message("user"):
+            st.markdown(user_question)
+        
+        # Add to history
+        st.session_state.it_chat_history.append({
+            "role": "user",
+            "content": user_question
+        })
+        
+        # Get fresh data for context
+        tickets_data = get_all_tickets()
+        
+        # Display streaming response (Week 10 Lab style)
+        with st.chat_message("assistant"):
+            container = st.empty()
+            full_reply = ""
+            
+            # Stream the response
+            try:
+                from app.services.gemini_service import query_gemini_streaming, SYSTEM_PROMPTS, dataframe_to_context
+                
+                data_context = dataframe_to_context(tickets_data)
+                
+                for chunk in query_gemini_streaming(
+                    question=user_question,
+                    system_prompt=SYSTEM_PROMPTS["itoperations"],
+                    data_context=data_context,
+                    api_key=api_key,
+                    model_name=selected_model,
+                    temperature=temperature
+                ):
+                    full_reply += chunk
+                    container.markdown(full_reply + "▌")  # Cursor effect
+                
+                # Remove cursor and show final
+                container.markdown(full_reply)
+                
+            except Exception as e:
+                error_msg = str(e)
+                if "API_KEY" in error_msg or "api key" in error_msg.lower() or "authentication" in error_msg.lower():
+                    full_reply = f"""⚠️ **API Key Error**
+
+**Issue:** {error_msg}
+
+**Solution:**
+1. Check that your API key is correct
+2. Verify the key is active at https://makersuite.google.com/app/apikey
+3. Try entering the key again in the sidebar
+
+**Note:** API keys are session-only and not saved."""
+                else:
+                    full_reply = f"❌ **Error:** {error_msg}\n\nPlease try again or check your connection."
+                container.markdown(full_reply)
+        
+        # Save to history
+        st.session_state.it_chat_history.append({
+            "role": "assistant",
+            "content": full_reply
+        })

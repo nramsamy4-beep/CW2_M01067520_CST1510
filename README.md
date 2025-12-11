@@ -101,15 +101,27 @@ Each domain has a dedicated AI assistant powered by Google Gemini:
 - **Data Science AI:** Data governance advice and resource optimization
 - **IT Operations AI:** Service desk performance insights
 
-### Configuration
-Set your Gemini API keys as environment variables:
-```bash
-GEMINI_API_KEY_CYBERSECURITY=your_key_here
-GEMINI_API_KEY_DATASCIENCE=your_key_here
-GEMINI_API_KEY_ITOPERATIONS=your_key_here
-```
+### AI Assistant Configuration (For Examiners)
 
-Or enter them directly in the dashboard's "API Configuration" section.
+The AI assistant requires a Gemini API key. **You have two options:**
+
+#### Option 1: Environment File (Recommended)
+1. Copy `env_example.txt` to `.env`:
+   ```bash
+   copy env_example.txt .env
+   ```
+2. Get your **FREE** Gemini API key from: https://makersuite.google.com/app/apikey
+3. Open `.env` and add your key:
+   ```env
+   GEMINI_API_KEY=your_actual_api_key_here
+   ```
+4. Restart the Streamlit app
+
+#### Option 2: Manual Entry in Dashboard
+- Enter your API key directly in the dashboard's **"AI Settings"** section (sidebar)
+- The key is used for that session only (not saved)
+
+**Note:** The same API key works for all three domains (Cybersecurity, Data Science, IT Operations).
 
 ## 📊 High-Value Insights
 
@@ -138,13 +150,18 @@ Or enter them directly in the dashboard's "API Configuration" section.
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd edit-CW2_M01067520_CST1510
+cd CW2_M01067520_CST1510
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Initialize database (optional - loads sample data)
+# Initialize database (loads sample data from CSV files)
 python load_data.py
+
+# (Optional) Set up AI Assistant API key
+# Copy env_example.txt to .env and add your Gemini API key
+copy env_example.txt .env
+# Then edit .env and add: GEMINI_API_KEY=your_key_here
 
 # Run the application
 streamlit run app.py
@@ -152,6 +169,8 @@ streamlit run app.py
 
 ### Default Access
 Navigate to `http://localhost:8501` and register a new account with your desired role.
+
+**Note:** The AI assistant will work even without a `.env` file - you can enter your API key directly in the dashboard's sidebar.
 
 ## 📈 Visualizations
 

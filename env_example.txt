@@ -1,24 +1,39 @@
-# Gemini API Keys for Multi-Domain Intelligence Platform
-# =====================================================
-# Copy this file to .env and fill in your actual API keys
-# Each domain has its own separate API key for isolation
+# ============================================================
+# Gemini API Keys Configuration for Multi-Domain Intelligence Platform
+# ============================================================
+# 
+# INSTRUCTIONS FOR EXAMINERS:
+# 1. Copy this file to .env (in the project root directory)
+#    Command: copy env_example.txt .env
+# 2. Get your FREE Gemini API key from: https://makersuite.google.com/app/apikey
+#    - Sign in with your Google account
+#    - Click "Create API Key"
+#    - Copy the generated key
+# 3. Replace the placeholder values below with your actual API key
+# 4. You can use the same key for all domains, or separate keys for each
 #
-# How to get Gemini API keys:
-# 1. Go to https://makersuite.google.com/app/apikey
-# 2. Create a new API key for each domain (or use the same key for all)
-# 3. Copy the keys below
+# ============================================================
 
-# Cybersecurity Domain API Key
-GEMINI_API_KEY_CYBERSECURITY=your_cybersecurity_api_key_here
+# Option 1: Use one key for all domains (SIMPLEST - Recommended for examiners)
+GEMINI_API_KEY=your_gemini_api_key_here
 
-# Data Science Domain API Key
-GEMINI_API_KEY_DATASCIENCE=your_datascience_api_key_here
+# Option 2: Use separate keys for each domain (optional)
+# Uncomment and fill these if you want separate keys:
+# GEMINI_API_KEY_CYBERSECURITY=your_cybersecurity_key_here
+# GEMINI_API_KEY_DATASCIENCE=your_datascience_key_here
+# GEMINI_API_KEY_ITOPERATIONS=your_itoperations_key_here
 
-# IT Operations Domain API Key
-GEMINI_API_KEY_ITOPERATIONS=your_itoperations_api_key_here
-
-# =====================================================
-# ALTERNATIVE: You can also enter API keys directly in the
-# dashboard interface using the "API Configuration" section
-# =====================================================
+# ============================================================
+# ALTERNATIVE: Manual Entry in Dashboard
+# ============================================================
+# If you don't set up a .env file, you can still use the AI assistant
+# by entering your API key directly in the dashboard's "AI Settings"
+# section in the sidebar. The key will be used for that session only.
+#
+# ============================================================
+# IMPORTANT NOTES:
+# - The .env file is already in .gitignore (won't be committed)
+# - API keys are never stored in the code
+# - Keys entered in the dashboard are session-only (not saved)
+# ============================================================
 

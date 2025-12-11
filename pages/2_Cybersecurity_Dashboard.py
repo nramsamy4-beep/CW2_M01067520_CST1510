@@ -8,7 +8,7 @@ import plotly.express as px
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.data.incidents import get_all_incidents, insert_incident, update_incident_status, delete_incident
-from app.services.gemini_service import query_cybersecurity_assistant, API_KEY_CYBERSECURITY, list_available_models
+from app.services.gemini_service import query_cybersecurity_assistant, API_KEY_CYBERSECURITY, list_available_models, get_api_key
 import os
 
 st.set_page_config(
@@ -365,20 +365,24 @@ with st.sidebar:
     # API Key input (secure - from secrets or manual entry)
     api_key = get_api_key("cybersecurity")
     if not api_key:
+        st.info("🔑 **API Key Required**\n\nTo use the AI assistant, please:\n1. Enter your key below, OR\n2. Create a `.env` file (see README)")
         api_key = st.text_input(
             "Gemini API Key",
             type="password",
-            help="Get your key from https://makersuite.google.com/app/apikey"
+            help="Get your FREE key from https://makersuite.google.com/app/apikey",
+            placeholder="Enter your Gemini API key here..."
         )
+        if api_key:
+            st.success("✅ API Key entered (session only)")
     else:
-        st.success("✅ API Key loaded from secrets")
+        st.success("✅ API Key loaded from configuration")
     
-    # Model selection
+    # Model selection (gemini-2.5-flash is the default)
     selected_model = st.selectbox(
         "Model",
-        ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+        ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
         index=0,
-        help="Select the Gemini model to use"
+        help="Select the Gemini model. gemini-2.5-flash is the latest version."
     )
     
     # Temperature slider
@@ -410,7 +414,14 @@ user_question = st.chat_input("Ask about security incidents...")
 
 if user_question:
     if not api_key:
-        st.error("⚠️ Please enter your Gemini API key in the sidebar.")
+        st.error("⚠️ **API Key Required**")
+        st.info("""
+        **To use the AI assistant:**
+        1. Enter your Gemini API key in the **AI Settings** section (sidebar)
+        2. Or create a `.env` file with `GEMINI_API_KEY=your_key_here`
+        
+        **Get a FREE API key:** https://makersuite.google.com/app/apikey
+        """)
     else:
         # Display user message
         with st.chat_message("user"):
@@ -451,7 +462,20 @@ if user_question:
                 container.markdown(full_reply)
                 
             except Exception as e:
-                full_reply = f"Error: {str(e)}"
+                error_msg = str(e)
+                if "API_KEY" in error_msg or "api key" in error_msg.lower() or "authentication" in error_msg.lower():
+                    full_reply = f"""⚠️ **API Key Error**
+
+**Issue:** {error_msg}
+
+**Solution:**
+1. Check that your API key is correct
+2. Verify the key is active at https://makersuite.google.com/app/apikey
+3. Try entering the key again in the sidebar
+
+**Note:** API keys are session-only and not saved."""
+                else:
+                    full_reply = f"❌ **Error:** {error_msg}\n\nPlease try again or check your connection."
                 container.markdown(full_reply)
         
         # Save to history
