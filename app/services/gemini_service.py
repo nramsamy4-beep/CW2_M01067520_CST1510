@@ -1,93 +1,121 @@
-"""Gemini API integration for domain-specific AI assistants."""
+"""
+Gemini API Integration for Multi-Domain Intelligence Platform.
+Following Week 10 Lab structure with secure key storage and streaming support.
+
+Student ID: M01067520
+"""
+
 import os
 import google.generativeai as genai
-from typing import Optional, List
+from typing import Optional, List, Generator
 import pandas as pd
+from dotenv import load_dotenv
+import streamlit as st
 
+# Load environment variables from .env file
+load_dotenv()
 
 # ============================================================
-# HARDCODED API KEYS (for convenience during development/demo)
+# API KEY MANAGEMENT (Secure - Following Week 10 Lab)
 # ============================================================
-HARDCODED_API_KEY_CYBERSECURITY = "AIzaSyAzWGcD-I4mlWya6FECsg0ytM0ghogKsmU"
-HARDCODED_API_KEY_DATASCIENCE = "AIzaSyC2bJ0vtpYn1JjJORtAHcMcKmIRMsRQeSI"
-HARDCODED_API_KEY_ITOPERATIONS = "AIzaSyD06sgavkKs5P7j-oxVX42MfGSWQDek304"
 
-# Domain-specific API key environment variable names
-API_KEY_CYBERSECURITY = "GEMINI_API_KEY_CYBERSECURITY"
-API_KEY_DATASCIENCE = "GEMINI_API_KEY_DATASCIENCE"
-API_KEY_ITOPERATIONS = "GEMINI_API_KEY_ITOPERATIONS"
-
-# Set environment variables from hardcoded keys (if not already set)
-if not os.getenv(API_KEY_CYBERSECURITY):
-    os.environ[API_KEY_CYBERSECURITY] = HARDCODED_API_KEY_CYBERSECURITY
-if not os.getenv(API_KEY_DATASCIENCE):
-    os.environ[API_KEY_DATASCIENCE] = HARDCODED_API_KEY_DATASCIENCE
-if not os.getenv(API_KEY_ITOPERATIONS):
-    os.environ[API_KEY_ITOPERATIONS] = HARDCODED_API_KEY_ITOPERATIONS
-
-# Default model - will be updated based on available models
-DEFAULT_MODEL = "models/gemini-2.5-flash"
-
-
-def get_api_key(domain: str) -> Optional[str]:
-    """Get the API key for a specific domain."""
-    key_mapping = {
-        "cybersecurity": API_KEY_CYBERSECURITY,
-        "datascience": API_KEY_DATASCIENCE,
-        "itoperations": API_KEY_ITOPERATIONS
+def get_api_key(domain: str = "default") -> Optional[str]:
+    """
+    Get API key from environment variables or Streamlit secrets.
+    Priority: st.secrets > os.environ > .env file
+    
+    Args:
+        domain: 'cybersecurity', 'datascience', 'itoperations', or 'default'
+    
+    Returns:
+        API key string or None
+    """
+    # Domain-specific key names
+    key_names = {
+        "cybersecurity": "GEMINI_API_KEY_CYBERSECURITY",
+        "datascience": "GEMINI_API_KEY_DATASCIENCE", 
+        "itoperations": "GEMINI_API_KEY_ITOPERATIONS",
+        "default": "GEMINI_API_KEY"
     }
-    env_var = key_mapping.get(domain.lower())
-    if env_var:
-        return os.getenv(env_var)
-    return None
+    
+    key_name = key_names.get(domain.lower(), "GEMINI_API_KEY")
+    
+    # Try Streamlit secrets first (for deployment)
+    try:
+        if key_name in st.secrets:
+            return st.secrets[key_name]
+    except:
+        pass
+    
+    # Fall back to environment variable
+    api_key = os.getenv(key_name)
+    
+    # If domain-specific key not found, try default
+    if not api_key and domain != "default":
+        api_key = os.getenv("GEMINI_API_KEY")
+        try:
+            if "GEMINI_API_KEY" in st.secrets:
+                api_key = st.secrets["GEMINI_API_KEY"]
+        except:
+            pass
+    
+    return api_key
 
 
-def configure_gemini(api_key: str):
+def configure_gemini(api_key: str) -> None:
     """Configure the Gemini API with the provided key."""
     genai.configure(api_key=api_key)
 
 
+# ============================================================
+# MODEL CONFIGURATION
+# ============================================================
+
+# Available Gemini models
+AVAILABLE_MODELS = [
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
+]
+
+DEFAULT_MODEL = "gemini-2.0-flash"
+
+
 def list_available_models(api_key: str) -> List[str]:
-    """List all available models for the given API key."""
+    """List all available Gemini models."""
     try:
         configure_gemini(api_key)
         models = []
         for model in genai.list_models():
-            # supported_generation_methods can be a list of strings or objects
-            supported_methods = model.supported_generation_methods
-            if 'generateContent' in supported_methods:
+            if 'generateContent' in model.supported_generation_methods:
                 models.append(model.name)
         return models
     except Exception as e:
-        return [f"Error listing models: {str(e)}"]
+        return [f"Error: {str(e)}"]
 
 
-def get_best_available_model(api_key: str) -> str:
-    """Get the best available model for content generation."""
-    # Use gemini-2.5-flash directly
-    return "models/gemini-2.5-flash"
-
-
-def dataframe_to_context(df: pd.DataFrame, max_rows: int = 50) -> str:
-    """Convert DataFrame to a string context for the AI."""
-    if df.empty:
-        return "No data available in the database."
+def get_generation_config(temperature: float = 0.7, max_tokens: int = 2048) -> dict:
+    """
+    Get generation configuration (similar to OpenAI's parameters).
     
-    # Limit rows for context
-    if len(df) > max_rows:
-        df_sample = df.head(max_rows)
-        context = f"Showing {max_rows} of {len(df)} total records:\n\n"
-    else:
-        df_sample = df
-        context = f"Total records: {len(df)}\n\n"
-    
-    context += df_sample.to_string(index=False)
-    return context
+    Args:
+        temperature: Controls randomness (0.0 = deterministic, 2.0 = very random)
+        max_tokens: Maximum response length
+    """
+    return {
+        "temperature": temperature,
+        "max_output_tokens": max_tokens,
+        "top_p": 0.95,
+        "top_k": 40,
+    }
 
 
-def get_cybersecurity_system_prompt() -> str:
-    """System prompt for Cybersecurity domain AI assistant."""
-    return """You are a Cybersecurity AI Assistant specialized ONLY in analyzing security incidents and cyber threats.
+# ============================================================
+# DOMAIN-SPECIFIC SYSTEM PROMPTS
+# ============================================================
+
+SYSTEM_PROMPTS = {
+    "cybersecurity": """You are a Cybersecurity AI Assistant specialized ONLY in analyzing security incidents and cyber threats.
 
 YOUR ROLE:
 - Analyze cybersecurity incidents from the provided database
@@ -108,12 +136,9 @@ When analyzing incidents, consider:
 - Status (Open, Investigating, Resolved, Closed)
 - Patterns and trends in the data
 
-Always be professional and provide actionable security insights."""
+Always be professional and provide actionable security insights.""",
 
-
-def get_datascience_system_prompt() -> str:
-    """System prompt for Data Science domain AI assistant."""
-    return """You are a Data Science AI Assistant specialized ONLY in dataset management and data governance.
+    "datascience": """You are a Data Science AI Assistant specialized ONLY in dataset management and data governance.
 
 YOUR ROLE:
 - Analyze dataset metadata and resource consumption
@@ -135,12 +160,9 @@ When analyzing datasets, consider:
 - Resource consumption patterns
 - Data governance best practices
 
-Always provide actionable data management insights."""
+Always provide actionable data management insights.""",
 
-
-def get_itoperations_system_prompt() -> str:
-    """System prompt for IT Operations domain AI assistant."""
-    return """You are an IT Operations AI Assistant specialized ONLY in IT service desk and ticket management.
+    "itoperations": """You are an IT Operations AI Assistant specialized ONLY in IT service desk and ticket management.
 
 YOUR ROLE:
 - Analyze IT support tickets and service desk performance
@@ -163,94 +185,205 @@ When analyzing tickets, consider:
 - Resolution patterns and bottlenecks
 
 Always provide actionable IT service management insights."""
+}
 
 
-def query_cybersecurity_assistant(question: str, incidents_df: pd.DataFrame, api_key: str) -> str:
+# ============================================================
+# DATA CONTEXT HELPERS
+# ============================================================
+
+def dataframe_to_context(df: pd.DataFrame, max_rows: int = 50) -> str:
+    """Convert DataFrame to string context for AI analysis."""
+    if df is None or df.empty:
+        return "No data available in the database."
+    
+    if len(df) > max_rows:
+        context = f"Showing {max_rows} of {len(df)} total records:\n\n"
+        df_sample = df.head(max_rows)
+    else:
+        context = f"Total records: {len(df)}\n\n"
+        df_sample = df
+    
+    context += df_sample.to_string(index=False)
+    return context
+
+
+# ============================================================
+# CHAT FUNCTIONS (Following Week 10 Lab Structure)
+# ============================================================
+
+def query_gemini(
+    question: str,
+    system_prompt: str,
+    data_context: str,
+    api_key: str,
+    model_name: str = DEFAULT_MODEL,
+    temperature: float = 0.7,
+    stream: bool = False
+) -> str | Generator:
+    """
+    Query Gemini API (similar to OpenAI's chat.completions.create).
+    
+    Args:
+        question: User's question
+        system_prompt: Domain-specific system instructions
+        data_context: Database data as context
+        api_key: Gemini API key
+        model_name: Model to use
+        temperature: Response randomness (0.0-2.0)
+        stream: Enable streaming response
+    
+    Returns:
+        Response text or generator for streaming
+    """
+    try:
+        configure_gemini(api_key)
+        
+        # Create the model with generation config
+        generation_config = get_generation_config(temperature=temperature)
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            generation_config=generation_config
+        )
+        
+        # Build the full prompt (Gemini doesn't have separate system/user roles like OpenAI)
+        full_prompt = f"""{system_prompt}
+
+CURRENT DATABASE CONTEXT:
+{data_context}
+
+USER QUESTION: {question}
+
+Provide a helpful, focused response based on the data above. If the question is outside your domain, politely explain that you can only assist with domain-specific queries."""
+
+        if stream:
+            # Return generator for streaming
+            response = model.generate_content(full_prompt, stream=True)
+            return response
+        else:
+            # Return complete response
+            response = model.generate_content(full_prompt)
+            return response.text
+            
+    except Exception as e:
+        error_msg = f"Error communicating with Gemini AI: {str(e)}"
+        if stream:
+            return iter([error_msg])  # Return iterable for consistency
+        return error_msg
+
+
+def query_gemini_streaming(
+    question: str,
+    system_prompt: str,
+    data_context: str,
+    api_key: str,
+    model_name: str = DEFAULT_MODEL,
+    temperature: float = 0.7
+) -> Generator:
+    """
+    Query Gemini with streaming enabled (word-by-word response).
+    Following Week 10 Lab streaming pattern.
+    
+    Yields:
+        Chunks of response text
+    """
+    try:
+        configure_gemini(api_key)
+        
+        generation_config = get_generation_config(temperature=temperature)
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            generation_config=generation_config
+        )
+        
+        full_prompt = f"""{system_prompt}
+
+CURRENT DATABASE CONTEXT:
+{data_context}
+
+USER QUESTION: {question}
+
+Provide a helpful, focused response based on the data above."""
+
+        response = model.generate_content(full_prompt, stream=True)
+        
+        for chunk in response:
+            if chunk.text:
+                yield chunk.text
+                
+    except Exception as e:
+        yield f"Error: {str(e)}"
+
+
+# ============================================================
+# DOMAIN-SPECIFIC ASSISTANT FUNCTIONS
+# ============================================================
+
+def query_cybersecurity_assistant(
+    question: str, 
+    incidents_df: pd.DataFrame, 
+    api_key: str,
+    model_name: str = DEFAULT_MODEL,
+    temperature: float = 0.7,
+    stream: bool = False
+) -> str | Generator:
     """Query the Cybersecurity AI assistant."""
-    try:
-        configure_gemini(api_key)
-        
-        # Auto-detect best available model
-        model_name = get_best_available_model(api_key)
-        model = genai.GenerativeModel(model_name)
-        
-        # Build context with incident data
-        data_context = dataframe_to_context(incidents_df)
-        
-        # Create the full prompt
-        system_prompt = get_cybersecurity_system_prompt()
-        full_prompt = f"""{system_prompt}
-
-CURRENT INCIDENT DATABASE:
-{data_context}
-
-USER QUESTION: {question}
-
-Provide a helpful, focused response based on the cybersecurity incident data above. If the question is not related to cybersecurity, politely explain that you can only assist with cybersecurity-related queries."""
-
-        response = model.generate_content(full_prompt)
-        return response.text
-        
-    except Exception as e:
-        return f"Error communicating with AI: {str(e)}"
+    data_context = dataframe_to_context(incidents_df)
+    return query_gemini(
+        question=question,
+        system_prompt=SYSTEM_PROMPTS["cybersecurity"],
+        data_context=data_context,
+        api_key=api_key,
+        model_name=model_name,
+        temperature=temperature,
+        stream=stream
+    )
 
 
-def query_datascience_assistant(question: str, datasets_df: pd.DataFrame, api_key: str) -> str:
+def query_datascience_assistant(
+    question: str, 
+    datasets_df: pd.DataFrame, 
+    api_key: str,
+    model_name: str = DEFAULT_MODEL,
+    temperature: float = 0.7,
+    stream: bool = False
+) -> str | Generator:
     """Query the Data Science AI assistant."""
-    try:
-        configure_gemini(api_key)
-        
-        # Auto-detect best available model
-        model_name = get_best_available_model(api_key)
-        model = genai.GenerativeModel(model_name)
-        
-        # Build context with dataset data
-        data_context = dataframe_to_context(datasets_df)
-        
-        # Create the full prompt
-        system_prompt = get_datascience_system_prompt()
-        full_prompt = f"""{system_prompt}
-
-CURRENT DATASET CATALOG:
-{data_context}
-
-USER QUESTION: {question}
-
-Provide a helpful, focused response based on the dataset metadata above. If the question is not related to data science or data management, politely explain that you can only assist with data-related queries."""
-
-        response = model.generate_content(full_prompt)
-        return response.text
-        
-    except Exception as e:
-        return f"Error communicating with AI: {str(e)}"
+    data_context = dataframe_to_context(datasets_df)
+    return query_gemini(
+        question=question,
+        system_prompt=SYSTEM_PROMPTS["datascience"],
+        data_context=data_context,
+        api_key=api_key,
+        model_name=model_name,
+        temperature=temperature,
+        stream=stream
+    )
 
 
-def query_itoperations_assistant(question: str, tickets_df: pd.DataFrame, api_key: str) -> str:
+def query_itoperations_assistant(
+    question: str, 
+    tickets_df: pd.DataFrame, 
+    api_key: str,
+    model_name: str = DEFAULT_MODEL,
+    temperature: float = 0.7,
+    stream: bool = False
+) -> str | Generator:
     """Query the IT Operations AI assistant."""
-    try:
-        configure_gemini(api_key)
-        
-        # Auto-detect best available model
-        model_name = get_best_available_model(api_key)
-        model = genai.GenerativeModel(model_name)
-        
-        # Build context with ticket data
-        data_context = dataframe_to_context(tickets_df)
-        
-        # Create the full prompt
-        system_prompt = get_itoperations_system_prompt()
-        full_prompt = f"""{system_prompt}
+    data_context = dataframe_to_context(tickets_df)
+    return query_gemini(
+        question=question,
+        system_prompt=SYSTEM_PROMPTS["itoperations"],
+        data_context=data_context,
+        api_key=api_key,
+        model_name=model_name,
+        temperature=temperature,
+        stream=stream
+    )
 
-CURRENT IT TICKET DATABASE:
-{data_context}
 
-USER QUESTION: {question}
-
-Provide a helpful, focused response based on the IT ticket data above. If the question is not related to IT operations or service desk, politely explain that you can only assist with IT operations-related queries."""
-
-        response = model.generate_content(full_prompt)
-        return response.text
-        
-    except Exception as e:
-        return f"Error communicating with AI: {str(e)}"
+# Export constants for backward compatibility
+API_KEY_CYBERSECURITY = "GEMINI_API_KEY_CYBERSECURITY"
+API_KEY_DATASCIENCE = "GEMINI_API_KEY_DATASCIENCE"
+API_KEY_ITOPERATIONS = "GEMINI_API_KEY_ITOPERATIONS"
 

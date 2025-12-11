@@ -347,73 +347,115 @@ with col_delete:
                 st.error(f"❌ Incident #{delete_id} not found")
 
 # =============================================
-# AI ASSISTANT SECTION
+# AI ASSISTANT SECTION (Week 10 Lab Style with Streaming)
 # =============================================
 st.divider()
 st.subheader("🤖 Cybersecurity AI Assistant")
-st.caption("Ask questions about your security incidents. This AI only answers cybersecurity-related questions.")
+st.caption("Ask questions about your security incidents. Powered by Google Gemini.")
 
 # Initialize chat history in session state
 if "cyber_chat_history" not in st.session_state:
     st.session_state.cyber_chat_history = []
 
-# API Key input
-with st.expander("⚙️ API Configuration", expanded=False):
-    cyber_api_key = st.text_input(
-        "Gemini API Key for Cybersecurity",
-        type="password",
-        value=os.getenv(API_KEY_CYBERSECURITY, ""),
-        help="Enter your Gemini API key for the Cybersecurity domain",
-        key="cyber_api_key_input"
+# Sidebar AI Controls (Following Week 10 Lab pattern)
+with st.sidebar:
+    st.divider()
+    st.subheader("🤖 AI Settings")
+    
+    # API Key input (secure - from secrets or manual entry)
+    api_key = get_api_key("cybersecurity")
+    if not api_key:
+        api_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            help="Get your key from https://makersuite.google.com/app/apikey"
+        )
+    else:
+        st.success("✅ API Key loaded from secrets")
+    
+    # Model selection
+    selected_model = st.selectbox(
+        "Model",
+        ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+        index=0,
+        help="Select the Gemini model to use"
     )
-    if cyber_api_key:
-        os.environ[API_KEY_CYBERSECURITY] = cyber_api_key
-        st.success("✅ API Key configured")
-        
-        # Show available models
-        if st.button("🔍 List Available Models", key="list_models_cyber"):
-            with st.spinner("Fetching available models..."):
-                models = list_available_models(cyber_api_key)
-                if models:
-                    st.info("**Available Models:**")
-                    for m in models:
-                        st.code(m)
-
-# Chat interface
-with st.container():
-    # Display chat history
-    for message in st.session_state.cyber_chat_history:
-        if message["role"] == "user":
-            st.chat_message("user").write(message["content"])
-        else:
-            st.chat_message("assistant").write(message["content"])
     
-    # Chat input
-    user_question = st.chat_input("Ask about security incidents...", key="cyber_chat_input")
+    # Temperature slider
+    temperature = st.slider(
+        "Temperature",
+        min_value=0.0,
+        max_value=2.0,
+        value=0.7,
+        step=0.1,
+        help="Higher values = more creative, Lower = more focused"
+    )
     
-    if user_question:
-        # Check if API key is configured
-        api_key = os.getenv(API_KEY_CYBERSECURITY, "")
-        
-        if not api_key:
-            st.error("⚠️ Please configure your Gemini API key in the API Configuration section above.")
-        else:
-            # Add user message to history
-            st.session_state.cyber_chat_history.append({"role": "user", "content": user_question})
-            st.chat_message("user").write(user_question)
-            
-            # Get AI response
-            with st.spinner("🔍 Analyzing security data..."):
-                # Get fresh data for context
-                incidents_data = get_all_incidents()
-                response = query_cybersecurity_assistant(user_question, incidents_data, api_key)
-            
-            # Add response to history
-            st.session_state.cyber_chat_history.append({"role": "assistant", "content": response})
-            st.chat_message("assistant").write(response)
-
-# Clear chat button
-if st.session_state.cyber_chat_history:
-    if st.button("🗑️ Clear Chat History", key="clear_cyber_chat"):
+    # Message count
+    msg_count = len([m for m in st.session_state.cyber_chat_history if m["role"] == "user"])
+    st.metric("💬 Messages", msg_count)
+    
+    # Clear chat button
+    if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.cyber_chat_history = []
         st.rerun()
+
+# Display chat history
+for message in st.session_state.cyber_chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# Chat input (at bottom of page)
+user_question = st.chat_input("Ask about security incidents...")
+
+if user_question:
+    if not api_key:
+        st.error("⚠️ Please enter your Gemini API key in the sidebar.")
+    else:
+        # Display user message
+        with st.chat_message("user"):
+            st.markdown(user_question)
+        
+        # Add to history
+        st.session_state.cyber_chat_history.append({
+            "role": "user",
+            "content": user_question
+        })
+        
+        # Get fresh data for context
+        incidents_data = get_all_incidents()
+        
+        # Display streaming response (Week 10 Lab style)
+        with st.chat_message("assistant"):
+            container = st.empty()
+            full_reply = ""
+            
+            # Stream the response
+            try:
+                from app.services.gemini_service import query_gemini_streaming, SYSTEM_PROMPTS, dataframe_to_context
+                
+                data_context = dataframe_to_context(incidents_data)
+                
+                for chunk in query_gemini_streaming(
+                    question=user_question,
+                    system_prompt=SYSTEM_PROMPTS["cybersecurity"],
+                    data_context=data_context,
+                    api_key=api_key,
+                    model_name=selected_model,
+                    temperature=temperature
+                ):
+                    full_reply += chunk
+                    container.markdown(full_reply + "▌")  # Cursor effect
+                
+                # Remove cursor and show final
+                container.markdown(full_reply)
+                
+            except Exception as e:
+                full_reply = f"Error: {str(e)}"
+                container.markdown(full_reply)
+        
+        # Save to history
+        st.session_state.cyber_chat_history.append({
+            "role": "assistant",
+            "content": full_reply
+        })
